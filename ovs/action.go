@@ -68,6 +68,15 @@ var (
 	// errOutputFieldEmpty is returned when OutputField is called with field set to the empty string.
 	errOutputFieldEmpty = errors.New("field for action output (output:field syntax) is empty")
 
+	// errPopMplsEtherTypeEmpty is returned when PopMpls is called with etherType set to invalid value.
+	errPopMplsEtherTypeEmpty = errors.New("etherType for action pop_mpls (pop_mpls:ether_type syntax) is invalid")
+
+	// errPushMplsEtherTypeEmpty is returned when PushMpls is called with etherType set to invalid value.
+	errPushMplsEtherTypeEmpty = errors.New("etherType for action push_mpls (push_mpls:ether_type syntax) is invalid")
+
+	// errSetMplsTcEmpty is returned when SetMplsTc is called with traffic class set to invalid value.
+	errSetMplsTcEmpty = errors.New("traffic class for action set_mpls_tc (set_mpls_tc:tc syntax) is invalid")
+
 	// errLearnedNil is returned when Learn is called with a nil *LearnedFlow.
 	errLearnedNil = errors.New("learned flow for action learn is nil")
 )
@@ -195,6 +204,9 @@ const (
 	patResubmitPort                = "resubmit:%s"
 	patResubmitPortTable           = "resubmit(%s,%s)"
 	patLearn                       = "learn(%s)"
+	patPopMpls                     = "pop_mpls:%d"
+	patPushMpls                    = "push_mpls:%d"
+	patSetMplsTc                   = "set_mpls_tc:%d"
 )
 
 // ConnectionTracking sends a packet through the host's connection tracker.
@@ -717,6 +729,89 @@ func (a *learnAction) MarshalText() ([]byte, error) {
 	}
 
 	return bprintf(patLearn, l), nil
+}
+
+// PopMpls strips the outermost MPLS label stack entry and changes
+// the packet’s EtherType to ethertype.
+func PopMpls(etherType uint16) Action {
+	return &popMplsAction{
+		etherType: etherType,
+	}
+}
+
+// An popMplsAction is an Action which is used by PopMpls.
+type popMplsAction struct {
+	etherType uint16
+}
+
+// MarshalText implements Action.
+func (a *popMplsAction) MarshalText() ([]byte, error) {
+	if a.etherType < 0x600 || a.etherType >= 0xffff {
+		return nil, errPopMplsEtherTypeEmpty
+	}
+
+	return bprintf(patPopMpls, a.etherType), nil
+}
+
+// GoString implements Action.
+func (a *popMplsAction) GoString() string {
+	return fmt.Sprintf("ovs.PopMpls(%v)", a.etherType)
+}
+
+// PushMpls Pushes a new outermost MPLS label stack entry (LSE) onto the
+// packet and changes the packet’s Ethertype to ethertype, which
+// must be either B0x8847 or 0x8848.
+func PushMpls(etherType uint16) Action {
+	return &pushMplsAction{
+		etherType: etherType,
+	}
+}
+
+// An pushMplsAction is an Action which is used by PushMpls.
+type pushMplsAction struct {
+	etherType uint16
+}
+
+// MarshalText implements Action.
+func (a *pushMplsAction) MarshalText() ([]byte, error) {
+	if a.etherType != 0x8847 && a.etherType != 0x8848 {
+		return nil, errPushMplsEtherTypeEmpty
+	}
+
+	return bprintf(patPushMpls, a.etherType), nil
+}
+
+// GoString implements Action.
+func (a *pushMplsAction) GoString() string {
+	return fmt.Sprintf("ovs.PushMpls(%v)", a.etherType)
+}
+
+// SetMplsTc action sets the traffic class of the packet’s
+// outer MPLS label stack entry. tc should be in the range 0 to 7,
+// inclusive.
+func SetMplsTc(tc uint8) Action {
+	return &setMplsTcAction{
+		tc: tc,
+	}
+}
+
+// An setMplsTcAction is an Action which is used by SetMplsTc.
+type setMplsTcAction struct {
+	tc uint8
+}
+
+// MarshalText implements Action.
+func (a *setMplsTcAction) MarshalText() ([]byte, error) {
+	if a.tc <= 0 || a.tc >= 7 {
+		return nil, errSetMplsTcEmpty
+	}
+
+	return bprintf(patSetMplsTc, a.tc), nil
+}
+
+// GoString implements Action.
+func (a *setMplsTcAction) GoString() string {
+	return fmt.Sprintf("ovs.SetMplsTc(%v)", a.tc)
 }
 
 // validARPOP indicates if an ARP OP is out of range. It should be in the range

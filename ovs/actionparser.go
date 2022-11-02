@@ -389,5 +389,41 @@ func parseAction(s string) (Action, error) {
 		return SetField(ss[0][1], ss[0][2]), nil
 	}
 
+	// ActionPopMpls, with its etherType.
+	if strings.HasPrefix(s, patPopMpls[:len(patPopMpls)-2]) {
+		var etherType uint16
+		n, err := fmt.Sscanf(s, patPopMpls, &etherType)
+		if err != nil {
+			return nil, err
+		}
+		if n > 0 {
+			return PopMpls(etherType), nil
+		}
+	}
+
+	// ActionPushMpls, with its etherType.
+	if strings.HasPrefix(s, patPushMpls[:len(patPushMpls)-2]) {
+		var etherType uint16
+		n, err := fmt.Sscanf(s, patPushMpls, &etherType)
+		if err != nil {
+			return nil, err
+		}
+		if n > 0 {
+			return PushMpls(etherType), nil
+		}
+	}
+
+	// ActionSetMplsTc, with its etherType.
+	if strings.HasPrefix(s, patSetMplsTc[:len(patSetMplsTc)-2]) {
+		var tc uint8
+		n, err := fmt.Sscanf(s, patSetMplsTc, &tc)
+		if err != nil {
+			return nil, err
+		}
+		if n > 0 {
+			return SetMplsTc(tc), nil
+		}
+	}
+
 	return nil, fmt.Errorf("no action matched for %q", s)
 }
